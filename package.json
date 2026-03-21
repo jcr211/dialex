@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Warm nostalgic audio wrapper for Codex CLI.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jcr211/dialex.git"
+  },
   "bin": {
     "dialex": "./cli.js"
   },
@@ -20,4 +24,3 @@
   },
   "license": "MIT"
 }
-
