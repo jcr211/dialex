@@ -6,20 +6,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
-$assets = Join-Path $root 'assets'
+. (Join-Path $root 'dialex-core.ps1')
 $node = (Get-Command node).Source
 $codexJs = Join-Path (Join-Path (npm root -g) '@openai\codex') 'bin\codex.js'
-
-$sounds = @{
-  launch = Join-Path $assets 'launch.wav'
-  exec = Join-Path $assets 'exec.wav'
-  review = Join-Path $assets 'review.wav'
-  fork = Join-Path $assets 'fork.wav'
-  resume = Join-Path $assets 'resume.wav'
-  success = Join-Path $assets 'success.wav'
-  error = Join-Path $assets 'error.wav'
-  apply = Join-Path $assets 'apply.wav'
-}
 
 function Get-PrimaryCommand {
   param([string[]] $CommandArgs)
@@ -31,26 +20,6 @@ function Get-PrimaryCommand {
   }
 
   return $null
-}
-
-function Invoke-CodexSound {
-  param([string] $Name)
-
-  if ($env:CODEX_AUDIO_DISABLED -eq '1') {
-    return
-  }
-
-  $path = $sounds[$Name]
-  if (-not $path -or -not (Test-Path $path)) {
-    return
-  }
-
-  try {
-    $player = [System.Media.SoundPlayer]::new($path)
-    $player.PlaySync()
-  } catch {
-    # Sound should never block Codex execution.
-  }
 }
 
 function Get-StartCue {
@@ -105,7 +74,7 @@ function Invoke-CodexProcess {
         }
         'item.started' {
           if ($event.item -and $event.item.type -eq 'command_execution' -and -not $state.HasCommandExecution) {
-            Invoke-CodexSound -Name 'exec'
+            Invoke-DialexSound -Root $root -Name 'exec'
             $state.HasCommandExecution = $true
           }
         }
@@ -114,11 +83,11 @@ function Invoke-CodexProcess {
             $exitCode = if ($null -ne $event.item.exit_code) { [int]$event.item.exit_code } else { 0 }
             if ($exitCode -eq 0) {
               if (-not $state.SuccessPlayed) {
-                Invoke-CodexSound -Name 'success'
+                Invoke-DialexSound -Root $root -Name 'success'
                 $state.SuccessPlayed = $true
               }
             } elseif (-not $state.ErrorPlayed) {
-              Invoke-CodexSound -Name 'error'
+              Invoke-DialexSound -Root $root -Name 'error'
               $state.ErrorPlayed = $true
             }
           } elseif ($event.item -and $event.item.type -eq 'agent_message') {
@@ -127,7 +96,7 @@ function Invoke-CodexProcess {
         }
         'turn.completed' {
           if (-not $state.HasCommandExecution -and $state.SawAssistantMessage -and -not $state.SuccessPlayed) {
-            Invoke-CodexSound -Name 'review'
+            Invoke-DialexSound -Root $root -Name 'review'
             $state.SuccessPlayed = $true
           }
           $state.TurnCompleted = $true
@@ -181,14 +150,14 @@ function Invoke-CodexProcess {
   $process.WaitForExit()
 
   if ($process.ExitCode -ne 0 -and -not $state.ErrorPlayed) {
-    Invoke-CodexSound -Name 'error'
+    Invoke-DialexSound -Root $root -Name 'error'
   }
 
   return $process.ExitCode
 }
 
 $cue = Get-StartCue -CommandArgs $Args
-Invoke-CodexSound -Name $cue
+Invoke-DialexSound -Root $root -Name $cue
 
 $useJsonStream = $false
 foreach ($arg in $Args) {
@@ -205,11 +174,10 @@ if ($useJsonStream) {
   $exitCode = $LASTEXITCODE
 
   if ($exitCode -eq 0) {
-    Invoke-CodexSound -Name 'success'
+    Invoke-DialexSound -Root $root -Name 'success'
   } else {
-    Invoke-CodexSound -Name 'error'
+    Invoke-DialexSound -Root $root -Name 'error'
   }
 }
 
 exit $exitCode
-

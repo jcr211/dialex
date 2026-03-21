@@ -17,6 +17,8 @@
     "install.ps1",
     "uninstall.ps1",
     "codex-audio.ps1",
+    "dialex-core.ps1",
+    "dialex-hook.ps1",
     "assets"
   ],
   "engines": {

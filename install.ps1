@@ -10,6 +10,8 @@ $markerEnd = '# Dialex end'
 
 New-Item -ItemType Directory -Force -Path $installRoot, (Join-Path $installRoot 'assets') | Out-Null
 Copy-Item -Path (Join-Path $sourceRoot 'codex-audio.ps1') -Destination $installRoot -Force
+Copy-Item -Path (Join-Path $sourceRoot 'dialex-core.ps1') -Destination $installRoot -Force
+Copy-Item -Path (Join-Path $sourceRoot 'dialex-hook.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'assets\*') -Destination (Join-Path $installRoot 'assets') -Force
 
 $snippet = @'
@@ -59,4 +61,3 @@ Set-Content -Path $profilePath -Value $content -Encoding utf8
 
 Write-Host "Installed Dialex to $installRoot"
 Write-Host "Updated profile: $profilePath"
-

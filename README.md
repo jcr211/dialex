@@ -2,11 +2,14 @@
 
 Dialex is a warm, nostalgic audio wrapper for Codex CLI.
 
+It is designed around interactive Codex first, with a hook-ready runtime for future Codex prompt and thinking events.
+
 It adds subtle modem-era inspired cues for:
 
 - `codex` launch and exit
 - `codex exec --json` event streaming
 - `review`, `resume`, `fork`, and `apply` flows
+- future prompt, thinking, tool-action, and completion hook events
 
 ## What it sounds like
 
@@ -44,6 +47,26 @@ codex exec --json "..."
 ```
 
 That lets it react to the JSONL event stream emitted by Codex exec mode.
+
+## Interactive-first design
+
+Dialex is centered on normal interactive `codex` usage.
+
+Today:
+
+- interactive `codex` gets stable wrapper sounds on launch and completion
+- `codex exec --json` gets richer event-driven behavior
+
+The repo now also includes a hook-ready runtime in `dialex-hook.ps1` for future Codex interactive hooks. That runtime already supports these event names:
+
+- `prompt-submit`
+- `thinking-start`
+- `thinking-stop`
+- `tool-action`
+- `turn-complete`
+- `error`
+
+Those hook events are not wired into interactive Codex yet because the current external wrapper path still does not expose a stable public hook surface for the TUI.
 
 ## Uninstall
 
