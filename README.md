@@ -25,9 +25,8 @@ The goal is to feel intuitive and pleasant, not noisy or arcade-like.
 Windows / PowerShell:
 
 ```powershell
-git clone https://github.com/<your-user>/dialex.git
-cd dialex
-pwsh ./install.ps1
+npm install -g dialex-audio
+dialex install
 ```
 
 After install:
@@ -57,4 +56,4 @@ pwsh ./uninstall.ps1
 - This is currently Windows / PowerShell first.
 - The install script copies the audio bridge into `~/.codex/dialex`.
 - The audio bridge uses your local Codex CLI install; it does not replace it.
-
+- The npm package is just the delivery mechanism. The actual profile hook still lands in your PowerShell profile and `.codex` folder.
