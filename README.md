@@ -54,10 +54,30 @@ Dialex is centered on normal interactive `codex` usage.
 
 Today:
 
-- interactive `codex` gets stable wrapper sounds on launch and completion
-- `codex exec --json` gets richer event-driven behavior
+- interactive `codex` gets a live "windchime" of cues driven by Codex's session log
+- `codex exec --json` gets richer event-driven behavior off the JSON stream
+- launch / completion still get their own wrapper-played cues
 
-The repo now also includes a hook-ready runtime in `dialex-hook.ps1` for future Codex interactive hooks. That runtime already supports these event names:
+### Session-tail runtime
+
+When you launch interactive `codex`, Dialex spawns a background tailer that
+follows the rollout JSONL Codex writes under `~/.codex/sessions/`. As events
+land, the tailer plays cues for:
+
+- task start and completion
+- user prompts and assistant messages
+- shell command starts, successes, and errors
+- file patches via `apply_patch`
+- MCP tool calls, web fetches, and searches
+- subagent spawn / wait / close
+
+A short per-cue cooldown keeps bursty stretches from crashing together. Set
+`CODEX_AUDIO_DISABLED=1` to silence the tailer along with the wrapper.
+
+### Hook runtime
+
+The repo also includes `dialex-hook.ps1` for direct use from Codex's hook
+surface (`hooks.json`). It supports these event names:
 
 - `prompt-submit`
 - `thinking-start`
@@ -66,7 +86,9 @@ The repo now also includes a hook-ready runtime in `dialex-hook.ps1` for future 
 - `turn-complete`
 - `error`
 
-Those hook events are not wired into interactive Codex yet because the current external wrapper path still does not expose a stable public hook surface for the TUI.
+OpenAI currently disables hooks on Windows in their docs, so the tailer is the
+primary path on Windows today. The hook script is ready for the moment that
+gate lifts (or for use on other platforms).
 
 ## Uninstall
 

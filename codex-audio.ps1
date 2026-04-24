@@ -170,8 +170,13 @@ foreach ($arg in $Args) {
 if ($useJsonStream) {
   $exitCode = Invoke-CodexProcess -CommandArgs $Args
 } else {
-  & (Join-Path $env:APPDATA 'npm\codex.cmd') @Args
-  $exitCode = $LASTEXITCODE
+  Start-DialexTailer -Root $root
+  try {
+    & (Join-Path $env:APPDATA 'npm\codex.cmd') @Args
+    $exitCode = $LASTEXITCODE
+  } finally {
+    Stop-DialexTailer
+  }
 
   if ($exitCode -eq 0) {
     Invoke-DialexSound -Root $root -Name 'success'
