@@ -114,8 +114,9 @@ function Start-DialexAmbient {
     $ps = (Get-Command powershell).Source
   }
 
+  $escapedLoading = $loading -replace "'", "''"
   $loopScript = @"
-`$player = [System.Media.SoundPlayer]::new('$loading')
+`$player = [System.Media.SoundPlayer]::new('$escapedLoading')
 while (`$true) {
   try {
     `$player.PlaySync()

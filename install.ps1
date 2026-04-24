@@ -19,22 +19,27 @@ $snippet = @'
 # Dialex start
 $script:DialexAudioScript = Join-Path $env:USERPROFILE '.codex\dialex\codex-audio.ps1'
 if (Test-Path $script:DialexAudioScript) {
+  $script:DialexNativeCodex = (Get-Command codex -CommandType Application -ErrorAction SilentlyContinue).Source
+  if (-not $script:DialexNativeCodex) {
+    $script:DialexNativeCodex = Join-Path $env:APPDATA 'npm\codex.cmd'
+  }
+
   function global:codex {
     param(
       [Parameter(ValueFromRemainingArguments = $true)]
-      [string[]] $Args
+      [string[]] $CliArgs
     )
 
-    & $script:DialexAudioScript @Args
+    & $script:DialexAudioScript @CliArgs
   }
 
   function global:codex-native {
     param(
       [Parameter(ValueFromRemainingArguments = $true)]
-      [string[]] $Args
+      [string[]] $CliArgs
     )
 
-    & (Join-Path $env:APPDATA 'npm\codex.cmd') @Args
+    & $script:DialexNativeCodex @CliArgs
   }
 }
 # Dialex end

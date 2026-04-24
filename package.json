@@ -1,5 +1,5 @@
 {
-  "name": "dialex-audio",
+  "name": "dialex",
   "version": "0.1.0",
   "description": "Warm nostalgic audio wrapper for Codex CLI.",
   "type": "module",

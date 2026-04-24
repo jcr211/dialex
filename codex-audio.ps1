@@ -1,6 +1,6 @@
 param(
   [Parameter(ValueFromRemainingArguments = $true)]
-  [string[]] $Args
+  [string[]] $CliArgs
 )
 
 $ErrorActionPreference = 'Stop'
@@ -156,11 +156,11 @@ function Invoke-CodexProcess {
   return $process.ExitCode
 }
 
-$cue = Get-StartCue -CommandArgs $Args
+$cue = Get-StartCue -CommandArgs $CliArgs
 Invoke-DialexSound -Root $root -Name $cue
 
 $useJsonStream = $false
-foreach ($arg in $Args) {
+foreach ($arg in $CliArgs) {
   if ($arg -eq '--json') {
     $useJsonStream = $true
     break
@@ -168,11 +168,11 @@ foreach ($arg in $Args) {
 }
 
 if ($useJsonStream) {
-  $exitCode = Invoke-CodexProcess -CommandArgs $Args
+  $exitCode = Invoke-CodexProcess -CommandArgs $CliArgs
 } else {
   Start-DialexTailer -Root $root
   try {
-    & (Join-Path $env:APPDATA 'npm\codex.cmd') @Args
+    & (Join-Path $env:APPDATA 'npm\codex.cmd') @CliArgs
     $exitCode = $LASTEXITCODE
   } finally {
     Stop-DialexTailer
