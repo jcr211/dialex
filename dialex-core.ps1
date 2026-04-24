@@ -17,6 +17,21 @@ function Get-DialexStateRoot {
   return $root
 }
 
+function Get-DialexConfig {
+  $path = Join-Path (Get-DialexStateRoot) 'config.json'
+  if (Test-Path $path) {
+    try {
+      return Get-Content -Path $path -Raw | ConvertFrom-Json
+    } catch {}
+  }
+  return [PSCustomObject]@{ muted = $false }
+}
+
+function Test-DialexMuted {
+  if ($env:CODEX_AUDIO_DISABLED -eq '1') { return $true }
+  return (Get-DialexConfig).muted -eq $true
+}
+
 function Get-DialexSoundMap {
   param([string] $Root)
 
@@ -43,9 +58,7 @@ function Invoke-DialexSound {
     [string] $Name
   )
 
-  if ($env:CODEX_AUDIO_DISABLED -eq '1') {
-    return
-  }
+  if (Test-DialexMuted) { return }
 
   $sounds = Get-DialexSoundMap -Root $Root
   $path = $sounds[$Name]
@@ -84,9 +97,7 @@ function Stop-DialexAmbient {
 function Start-DialexAmbient {
   param([string] $Root)
 
-  if ($env:CODEX_AUDIO_DISABLED -eq '1') {
-    return
-  }
+  if (Test-DialexMuted) { return }
 
   Stop-DialexAmbient
 
@@ -117,6 +128,61 @@ while (`$true) {
 
   $proc = Start-Process -FilePath $ps -ArgumentList @('-NoProfile', '-Command', $loopScript) -PassThru -WindowStyle Hidden
   Set-Content -Path $pidFile -Value $proc.Id -Encoding ascii
+}
+
+function Stop-DialexTailer {
+  $stateRoot = Get-DialexStateRoot
+  $pidFile = Join-Path $stateRoot 'tailer.pid'
+
+  if (-not (Test-Path $pidFile)) {
+    return
+  }
+
+  try {
+    $tailerPid = [int](Get-Content -Path $pidFile -Raw)
+    $proc = Get-Process -Id $tailerPid -ErrorAction SilentlyContinue
+    if ($proc) {
+      Stop-Process -Id $tailerPid -Force -ErrorAction SilentlyContinue
+    }
+  } catch {
+  }
+
+  Remove-Item -Path $pidFile -Force -ErrorAction SilentlyContinue
+}
+
+function Start-DialexTailer {
+  param([string] $Root)
+
+  if (Test-DialexMuted) { return }
+
+  Stop-DialexTailer
+
+  $tailerScript = Join-Path $Root 'dialex-tailer.ps1'
+  if (-not (Test-Path $tailerScript)) {
+    return
+  }
+
+  $ps = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+  if (-not $ps) {
+    $ps = (Get-Command powershell).Source
+  }
+
+  $startTime = [DateTime]::UtcNow.ToString('o')
+  $args = @(
+    '-NoProfile',
+    '-ExecutionPolicy', 'Bypass',
+    '-File', $tailerScript,
+    '-Root', $Root,
+    '-StartTime', $startTime
+  )
+
+  try {
+    $proc = Start-Process -FilePath $ps -ArgumentList $args -PassThru -WindowStyle Hidden
+    $stateRoot = Get-DialexStateRoot
+    $pidFile = Join-Path $stateRoot 'tailer.pid'
+    Set-Content -Path $pidFile -Value $proc.Id -Encoding ascii
+  } catch {
+  }
 }
 
 function Invoke-DialexHookEvent {

@@ -12,6 +12,7 @@ New-Item -ItemType Directory -Force -Path $installRoot, (Join-Path $installRoot 
 Copy-Item -Path (Join-Path $sourceRoot 'codex-audio.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-core.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-hook.ps1') -Destination $installRoot -Force
+Copy-Item -Path (Join-Path $sourceRoot 'dialex-tailer.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'assets\*') -Destination (Join-Path $installRoot 'assets') -Force
 
 $snippet = @'
