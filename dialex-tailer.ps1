@@ -194,12 +194,19 @@ try {
   $stream.Seek(0, [System.IO.SeekOrigin]::End) | Out-Null
   $reader = [System.IO.StreamReader]::new($stream, [System.Text.Encoding]::UTF8)
 
+  $lastActivity = [DateTime]::UtcNow
+  $staleTimeout = [TimeSpan]::FromSeconds(120)
   while ($true) {
     $line = $reader.ReadLine()
     if ($null -eq $line) {
+      if (([DateTime]::UtcNow - $lastActivity) -gt $staleTimeout) {
+        Write-TailerLog "no activity for $($staleTimeout.TotalSeconds)s, exiting"
+        break
+      }
       Start-Sleep -Milliseconds 100
       continue
     }
+    $lastActivity = [DateTime]::UtcNow
     Handle-Event -Line $line
   }
 } catch {

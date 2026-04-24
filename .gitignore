@@ -1,6 +1,24 @@
+# OS
 .DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+
+# Build output
+dist/
+out/
+
+# Logs and temp files
 *.log
 *.tmp
-dist
-out
+
+# Environment and secrets
+.env
+.env.*
+
+# Local tool state (contains session data, local paths, metrics)
+.claude/
+.omc/
+.omx/
 
