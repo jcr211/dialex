@@ -19,7 +19,9 @@ if (-not (Test-Path $sessionsRoot)) {
 $soundMap = Get-DialexSoundMap -Root $Root
 $lastPlayed = @{}
 $cooldownMs = 200
+$cueCooldowns = @{ loading = 8000 }
 $script:DialexPlayers = @{}
+$script:ambientActive = $false
 
 $logPath = Join-Path (Get-DialexStateRoot) 'tailer.log'
 function Write-TailerLog {
@@ -35,9 +37,10 @@ function Should-PlayCue {
   param([string] $Name)
 
   $now = [DateTime]::UtcNow
+  $cd = if ($cueCooldowns.ContainsKey($Name)) { $cueCooldowns[$Name] } else { $cooldownMs }
   if ($lastPlayed.ContainsKey($Name)) {
     $elapsed = ($now - $lastPlayed[$Name]).TotalMilliseconds
-    if ($elapsed -lt $cooldownMs) {
+    if ($elapsed -lt $cd) {
       return $false
     }
   }
@@ -135,6 +138,11 @@ function Handle-Event {
     'event_msg' {
       $payload = $event.payload
       if (-not $payload) { return }
+      if ($script:ambientActive -and $payload.type -ne 'token_count') {
+        Stop-DialexAmbient
+        $script:ambientActive = $false
+        Write-TailerLog "ambient stop"
+      }
       switch ($payload.type) {
         'task_started'        { Play-Cue -Name 'launch' }
         'user_message'        { Play-Cue -Name 'prompt' }
@@ -158,24 +166,64 @@ function Handle-Event {
             Play-Cue -Name 'error'
           }
         }
-        'task_complete'         { Play-Cue -Name 'done' }
+        'task_complete'          { Play-Cue -Name 'done' }
         'collab_agent_spawn_end' { Play-Cue -Name 'fork' }
         'collab_close_end'       { Play-Cue -Name 'resume' }
+        'turn_aborted'           { Play-Cue -Name 'error' }
       }
     }
     'response_item' {
       $payload = $event.payload
       if (-not $payload) { return }
-      if ($payload.type -eq 'function_call') {
-        switch ($payload.name) {
-          'shell_command' { Play-Cue -Name 'exec' }
-          'search'        { Play-Cue -Name 'action' }
-          'fetch'         { Play-Cue -Name 'action' }
-          'update_plan'   { Play-Cue -Name 'action' }
-          'spawn_agent'   { Play-Cue -Name 'fork' }
-          'wait_agent'    { Play-Cue -Name 'resume' }
-          'close_agent'   { Play-Cue -Name 'resume' }
+
+      if ($payload.type -eq 'reasoning') {
+        if (-not $script:ambientActive) {
+          Start-DialexAmbient -Root $Root
+          $script:ambientActive = $true
+          Write-TailerLog "ambient start"
         }
+        return
+      }
+
+      if ($script:ambientActive) {
+        Stop-DialexAmbient
+        $script:ambientActive = $false
+        Write-TailerLog "ambient stop"
+      }
+
+      switch ($payload.type) {
+        'function_call' {
+          switch ($payload.name) {
+            'shell_command' { Play-Cue -Name 'exec' }
+            'execute_sql'   { Play-Cue -Name 'exec' }
+            'apply_patch'   { Play-Cue -Name 'apply' }
+            'update_plan'   { Play-Cue -Name 'action' }
+            'spawn_agent'   { Play-Cue -Name 'fork' }
+            'wait_agent'    { Play-Cue -Name 'resume' }
+            'close_agent'   { Play-Cue -Name 'resume' }
+            default {
+              if ($payload.name -match '(?i)write|edit|create|delete|push') {
+                Play-Cue -Name 'apply'
+              } elseif ($payload.name -match '(?i)read|search|list|get|query|fetch') {
+                Play-Cue -Name 'action'
+              } elseif ($payload.name -match '(?i)pull_request|review') {
+                Play-Cue -Name 'review'
+              }
+            }
+          }
+        }
+        'function_call_output' {
+          if ($payload.output -match '^Exit code:\s*(\d+)') {
+            $code = [int]$Matches[1]
+            if ($code -eq 0) { Play-Cue -Name 'success' }
+            else { Play-Cue -Name 'error' }
+          }
+        }
+        'custom_tool_call' {
+          if ($payload.name -eq 'apply_patch') { Play-Cue -Name 'apply' }
+        }
+        'web_search_call'  { Play-Cue -Name 'action' }
+        'tool_search_call' { Play-Cue -Name 'action' }
       }
     }
   }
@@ -212,6 +260,7 @@ try {
 } catch {
   # Tailer must never crash the wrapper.
 } finally {
+  if ($script:ambientActive) { Stop-DialexAmbient }
   if ($reader) { $reader.Dispose() }
   if ($stream) { $stream.Dispose() }
 }
