@@ -13,11 +13,13 @@ Copy-Item -Path (Join-Path $sourceRoot 'codex-audio.ps1') -Destination $installR
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-core.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-hook.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-tailer.ps1') -Destination $installRoot -Force
+Copy-Item -Path (Join-Path $sourceRoot 'dialex-watcher.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'assets\*') -Destination (Join-Path $installRoot 'assets') -Force
 
 $snippet = @'
 # Dialex start
-$script:DialexAudioScript = Join-Path $env:USERPROFILE '.codex\dialex\codex-audio.ps1'
+$script:DialexRoot = Join-Path $env:USERPROFILE '.codex\dialex'
+$script:DialexAudioScript = Join-Path $script:DialexRoot 'codex-audio.ps1'
 if (Test-Path $script:DialexAudioScript) {
   $script:DialexNativeCodex = (Get-Command codex -CommandType Application -ErrorAction SilentlyContinue).Source
   if (-not $script:DialexNativeCodex) {
@@ -41,6 +43,9 @@ if (Test-Path $script:DialexAudioScript) {
 
     & $script:DialexNativeCodex @CliArgs
   }
+
+  . (Join-Path $script:DialexRoot 'dialex-core.ps1')
+  Start-DialexWatcher -Root $script:DialexRoot
 }
 # Dialex end
 '@

@@ -87,7 +87,7 @@ function Find-LatestRollout {
     return $null
   }
 
-  $cutoff = $startUtc.AddSeconds(-2)
+  $cutoff = $startUtc.AddSeconds(-30)
   $newest = $candidates |
     Where-Object { $_.LastWriteTimeUtc -ge $cutoff } |
     Sort-Object LastWriteTimeUtc -Descending |
