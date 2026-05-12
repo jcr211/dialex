@@ -219,3 +219,74 @@ function Invoke-DialexHookEvent {
     }
   }
 }
+
+function Get-CodexExePath {
+  $base = Join-Path $env:APPDATA 'npm\node_modules\@openai\codex'
+  if (-not (Test-Path $base)) { return $null }
+
+  $patterns = @(
+    'node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex\codex.exe',
+    'node_modules\@openai\codex-win32-arm64\vendor\aarch64-pc-windows-msvc\codex\codex.exe',
+    'vendor\x86_64-pc-windows-msvc\codex\codex.exe',
+    'vendor\aarch64-pc-windows-msvc\codex\codex.exe'
+  )
+
+  foreach ($p in $patterns) {
+    $full = Join-Path $base $p
+    if (Test-Path $full) { return $full }
+  }
+
+  return $null
+}
+
+function Test-DialexWatcherRunning {
+  $pidFile = Join-Path (Get-DialexStateRoot) 'watcher.pid'
+  if (-not (Test-Path $pidFile)) { return $false }
+  try {
+    $watcherPid = [int](Get-Content -Path $pidFile -Raw)
+    $proc = Get-Process -Id $watcherPid -ErrorAction SilentlyContinue
+    return ($null -ne $proc -and -not $proc.HasExited)
+  } catch {
+    return $false
+  }
+}
+
+function Stop-DialexWatcher {
+  $pidFile = Join-Path (Get-DialexStateRoot) 'watcher.pid'
+  if (-not (Test-Path $pidFile)) { return }
+  try {
+    $watcherPid = [int](Get-Content -Path $pidFile -Raw)
+    $proc = Get-Process -Id $watcherPid -ErrorAction SilentlyContinue
+    if ($proc -and -not $proc.HasExited) {
+      Stop-Process -Id $watcherPid -Force -ErrorAction SilentlyContinue
+    }
+  } catch {}
+  Remove-Item -Path $pidFile -Force -ErrorAction SilentlyContinue
+}
+
+function Start-DialexWatcher {
+  param([string] $Root)
+
+  if (Test-DialexMuted) { return }
+  if (Test-DialexWatcherRunning) { return }
+  Stop-DialexWatcher
+
+  $watcherScript = Join-Path $Root 'dialex-watcher.ps1'
+  if (-not (Test-Path $watcherScript)) { return }
+
+  $ps = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
+  if (-not $ps) { $ps = (Get-Command powershell).Source }
+
+  $watcherArgs = @(
+    '-NoProfile',
+    '-ExecutionPolicy', 'Bypass',
+    '-File', $watcherScript,
+    '-Root', $Root
+  )
+
+  try {
+    $proc = Start-Process -FilePath $ps -ArgumentList $watcherArgs -PassThru -WindowStyle Hidden
+    $pidFile = Join-Path (Get-DialexStateRoot) 'watcher.pid'
+    Set-Content -Path $pidFile -Value $proc.Id -Encoding ascii
+  } catch {}
+}

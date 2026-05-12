@@ -1,6 +1,6 @@
 {
   "name": "dialex",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Warm nostalgic audio wrapper for Codex CLI.",
   "type": "module",
   "repository": {
@@ -20,6 +20,7 @@
     "dialex-core.ps1",
     "dialex-hook.ps1",
     "dialex-tailer.ps1",
+    "dialex-watcher.ps1",
     "assets"
   ],
   "engines": {

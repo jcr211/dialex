@@ -7,8 +7,11 @@ $ErrorActionPreference = 'Stop'
 
 $root = $PSScriptRoot
 . (Join-Path $root 'dialex-core.ps1')
-$node = (Get-Command node).Source
-$codexJs = Join-Path (Join-Path (npm root -g) '@openai\codex') 'bin\codex.js'
+$codexExe = Get-CodexExePath
+if (-not $codexExe) {
+  $node = (Get-Command node).Source
+  $codexJs = Join-Path (Join-Path (npm root -g) '@openai\codex') 'bin\codex.js'
+}
 
 function Get-PrimaryCommand {
   param([string[]] $CommandArgs)
@@ -42,7 +45,10 @@ function Get-StartCue {
 }
 
 function Invoke-CodexProcess {
-  param([string[]] $CommandArgs)
+  param(
+    [string[]] $CommandArgs,
+    [switch] $MuteSounds
+  )
 
   $state = [hashtable]::Synchronized(@{
     HasCommandExecution = $false
@@ -61,6 +67,8 @@ function Invoke-CodexProcess {
       }
 
       [Console]::Out.WriteLine($Line)
+
+      if ($MuteSounds) { return }
 
       $event = $Line | ConvertFrom-Json -Depth 16
 
@@ -108,13 +116,17 @@ function Invoke-CodexProcess {
   }
 
   $psi = [System.Diagnostics.ProcessStartInfo]::new()
-  $psi.FileName = $node
+  if ($codexExe) {
+    $psi.FileName = $codexExe
+  } else {
+    $psi.FileName = $node
+    $psi.ArgumentList.Add($codexJs)
+  }
   $psi.UseShellExecute = $false
   $psi.RedirectStandardOutput = $true
   $psi.RedirectStandardError = $true
   $psi.StandardOutputEncoding = [System.Text.UTF8Encoding]::new($false)
   $psi.StandardErrorEncoding = [System.Text.UTF8Encoding]::new($false)
-  $psi.ArgumentList.Add($codexJs)
   foreach ($arg in $CommandArgs) {
     $psi.ArgumentList.Add($arg)
   }
@@ -167,21 +179,29 @@ foreach ($arg in $CliArgs) {
   }
 }
 
+$watcherActive = Test-DialexWatcherRunning
+
 if ($useJsonStream) {
-  $exitCode = Invoke-CodexProcess -CommandArgs $CliArgs
+  $exitCode = Invoke-CodexProcess -CommandArgs $CliArgs -MuteSounds:$watcherActive
 } else {
-  Start-DialexTailer -Root $root
+  if (-not $watcherActive) {
+    Start-DialexTailer -Root $root
+  }
   try {
     & (Join-Path $env:APPDATA 'npm\codex.cmd') @CliArgs
     $exitCode = $LASTEXITCODE
   } finally {
-    Stop-DialexTailer
+    if (-not $watcherActive) {
+      Stop-DialexTailer
+    }
   }
 
-  if ($exitCode -eq 0) {
-    Invoke-DialexSound -Root $root -Name 'success'
-  } else {
-    Invoke-DialexSound -Root $root -Name 'error'
+  if (-not $watcherActive) {
+    if ($exitCode -eq 0) {
+      Invoke-DialexSound -Root $root -Name 'success'
+    } else {
+      Invoke-DialexSound -Root $root -Name 'error'
+    }
   }
 }
 
