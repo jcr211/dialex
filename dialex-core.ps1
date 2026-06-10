@@ -225,8 +225,12 @@ function Get-CodexExePath {
   if (-not (Test-Path $base)) { return $null }
 
   $patterns = @(
+    'node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe',
+    'node_modules\@openai\codex-win32-arm64\vendor\aarch64-pc-windows-msvc\bin\codex.exe',
     'node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex\codex.exe',
     'node_modules\@openai\codex-win32-arm64\vendor\aarch64-pc-windows-msvc\codex\codex.exe',
+    'vendor\x86_64-pc-windows-msvc\bin\codex.exe',
+    'vendor\aarch64-pc-windows-msvc\bin\codex.exe',
     'vendor\x86_64-pc-windows-msvc\codex\codex.exe',
     'vendor\aarch64-pc-windows-msvc\codex\codex.exe'
   )

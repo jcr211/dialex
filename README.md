@@ -23,6 +23,10 @@ The palette is intentionally soft:
 
 The goal is to feel intuitive and pleasant, not noisy or arcade-like.
 
+## No-profile Codex launches
+
+Dialex installs `~\.codex\dialex\bin` ahead of the npm Codex shim in the user PATH. This lets `pwsh -NoProfile -NonInteractive -Command "codex exec ..."` callers, including Claude Code sub-agents, reach `codex-audio.ps1` even though they do not load the PowerShell profile function.
+
 ## Install
 
 Windows / PowerShell:

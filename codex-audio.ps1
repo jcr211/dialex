@@ -44,6 +44,16 @@ function Get-StartCue {
   }
 }
 
+function Invoke-NativeCodex {
+  param([string[]] $CommandArgs)
+
+  if ($codexExe) {
+    & $codexExe @CommandArgs
+  } else {
+    & $node $codexJs @CommandArgs
+  }
+}
+
 function Invoke-CodexProcess {
   param(
     [string[]] $CommandArgs,
@@ -180,6 +190,8 @@ foreach ($arg in $CliArgs) {
 }
 
 $watcherActive = Test-DialexWatcherRunning
+$primaryCommand = Get-PrimaryCommand -CommandArgs $CliArgs
+$forceDirectCompletionCue = ($primaryCommand -eq 'exec' -or $env:DIALEX_FORCE_DIRECT_COMPLETION -eq '1')
 
 if ($useJsonStream) {
   $exitCode = Invoke-CodexProcess -CommandArgs $CliArgs -MuteSounds:$watcherActive
@@ -188,7 +200,7 @@ if ($useJsonStream) {
     Start-DialexTailer -Root $root
   }
   try {
-    & (Join-Path $env:APPDATA 'npm\codex.cmd') @CliArgs
+    Invoke-NativeCodex -CommandArgs $CliArgs
     $exitCode = $LASTEXITCODE
   } finally {
     if (-not $watcherActive) {
@@ -196,7 +208,7 @@ if ($useJsonStream) {
     }
   }
 
-  if (-not $watcherActive) {
+  if (-not $watcherActive -or $forceDirectCompletionCue) {
     if ($exitCode -eq 0) {
       Invoke-DialexSound -Root $root -Name 'success'
     } else {

@@ -8,23 +8,25 @@ $profilePath = $PROFILE.CurrentUserCurrentHost
 $markerStart = '# Dialex start'
 $markerEnd = '# Dialex end'
 
-New-Item -ItemType Directory -Force -Path $installRoot, (Join-Path $installRoot 'assets') | Out-Null
+New-Item -ItemType Directory -Force -Path $installRoot, (Join-Path $installRoot 'assets'), (Join-Path $installRoot 'bin') | Out-Null
 Copy-Item -Path (Join-Path $sourceRoot 'codex-audio.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-core.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-hook.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-tailer.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'dialex-watcher.ps1') -Destination $installRoot -Force
 Copy-Item -Path (Join-Path $sourceRoot 'assets\*') -Destination (Join-Path $installRoot 'assets') -Force
+if (Test-Path (Join-Path $sourceRoot 'bin')) {
+  Copy-Item -Path (Join-Path $sourceRoot 'bin\*') -Destination (Join-Path $installRoot 'bin') -Force
+}
+
+$shimRoot = Join-Path $installRoot 'bin'
 
 $snippet = @'
 # Dialex start
 $script:DialexRoot = Join-Path $env:USERPROFILE '.codex\dialex'
 $script:DialexAudioScript = Join-Path $script:DialexRoot 'codex-audio.ps1'
 if (Test-Path $script:DialexAudioScript) {
-  $script:DialexNativeCodex = (Get-Command codex -CommandType Application -ErrorAction SilentlyContinue).Source
-  if (-not $script:DialexNativeCodex) {
-    $script:DialexNativeCodex = Join-Path $env:APPDATA 'npm\codex.cmd'
-  }
+  $script:DialexNativeCodex = Join-Path $env:APPDATA 'npm\codex.cmd'
 
   function global:codex {
     param(
@@ -70,5 +72,34 @@ if (Test-Path $profilePath) {
 
 Set-Content -Path $profilePath -Value $content -Encoding utf8
 
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+$pathEntries = if ([string]::IsNullOrWhiteSpace($userPath)) { @() } else { $userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } }
+$normalizedShimRoot = [System.IO.Path]::GetFullPath($shimRoot).TrimEnd('\')
+$pathEntries = @($pathEntries | Where-Object {
+  try { [System.IO.Path]::GetFullPath($_).TrimEnd('\') -ne $normalizedShimRoot } catch { $_ -ne $shimRoot }
+})
+$npmRoot = Join-Path $env:APPDATA 'npm'
+$normalizedNpmRoot = [System.IO.Path]::GetFullPath($npmRoot).TrimEnd('\')
+$newPathEntries = [System.Collections.Generic.List[string]]::new()
+$insertedShim = $false
+foreach ($entry in $pathEntries) {
+  try {
+    $normalizedEntry = [System.IO.Path]::GetFullPath($entry).TrimEnd('\')
+  } catch {
+    $normalizedEntry = $entry
+  }
+
+  if (-not $insertedShim -and $normalizedEntry -eq $normalizedNpmRoot) {
+    $newPathEntries.Add($shimRoot)
+    $insertedShim = $true
+  }
+  $newPathEntries.Add($entry)
+}
+if (-not $insertedShim) {
+  $newPathEntries.Insert(0, $shimRoot)
+}
+[Environment]::SetEnvironmentVariable('Path', ($newPathEntries -join ';'), 'User')
+
 Write-Host "Installed Dialex to $installRoot"
 Write-Host "Updated profile: $profilePath"
+Write-Host "Added Dialex shim to user PATH before npm: $shimRoot"

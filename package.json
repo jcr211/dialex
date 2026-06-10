@@ -21,6 +21,7 @@
     "dialex-hook.ps1",
     "dialex-tailer.ps1",
     "dialex-watcher.ps1",
+    "bin",
     "assets"
   ],
   "engines": {
